@@ -62,6 +62,10 @@ class Linear:
         self.input_dim = input_dim
         self.output_dim = output_dim
         self._bias = bias
+        if self._bias:
+            # TODO
+            self.bias = None
+
         self.initializer = param_initializer
         self.theta = self._init_theta(self.initializer)
 
@@ -77,11 +81,11 @@ class Linear:
             ),
         )
 
-    def forward(self, X) -> None:
+    def forward(self, X) -> None:  # -> HESubMatrix ? or HEMatrix?
         # TODO
         return None
 
-    def backward(self) -> None:
+    def backward(self) -> None:  # -> HESubMatrix ? or HEMatrix?
         # TODO
         return None
 
