@@ -44,8 +44,10 @@ from heaan_sdk.util.io import (
     save_rns,
 )
 
+from .modules import HEModules
 
-class Linear:
+
+class Linear(HEModules):
     def __init__(
         self,
         context: Context,
@@ -57,10 +59,10 @@ class Linear:
         random_state: Optional[int] = None,
         activation: str = "auto",  # GeLU, sigmoid, softmax
     ) -> None:
-        self.context = context
-        self.unit_shape = unit_shape
+        super().__init__(context, unit_shape)
         self.input_dim = input_dim
         self.output_dim = output_dim
+
         self._bias = bias
         if self._bias:
             # TODO
@@ -69,6 +71,10 @@ class Linear:
         self.initializer = param_initializer
         self.theta = self._init_theta(self.initializer)
         self.activation = activation
+        self.random_state = get_random_state(random_state)
+        self.dtheta = None
+        self.dbias = None
+        self.X = None
 
     @property
     def shape(self) -> Tuple[int, int]:
@@ -85,33 +91,16 @@ class Linear:
         )
 
     def forward(self, X: HEMatrix) -> HEMatrix:  # -> HESubMatrix ? or HEMatrix?
-        # TODO
-        if self.activation == "sigmoid":
-            y = mop.sigmoid(X, wide=False)
-        elif self.activation == "sigmoid_wide":
-            y = mop.sigmoid(X, wide=True)
-        elif self.activation == "softmax":
-            y = mop.softmax(X, output_tiled=True)
-        elif self.activation == "softmax_wide":
-            y = mop.softmax_wide(X, output_tiled=True)
-        elif self.activation == "GeLU":
-            y = mop.gelu(X)  # TODO implement GeLU functions
-
+        self.X = X
+        y = mop.mat_diag_abt(X, self.theta) + self.bias
         return y
 
     def backward(self, dout) -> HEMatrix:  # -> HESubMatrix ? or HEMatrix?
-        # TODO
-        if self.activation == "sigmoid":
-            y = mop.sigmoid(dout, wide=False) * (1 - mop.sigmoid(dout, wide=False))
-        elif self.activation == "sigmoid_wide":
-            y = mop.sigmoid(dout, wide=True) * (1 - mop.sigmoid(dout, wide=True))
-        elif self.activation == "softmax":
-            y = mop.softmax(dout, output_tiled=True)
-        elif self.activation == "softmax_wide":
-            y = mop.softmax_wide(dout, output_tiled=True)
-        elif self.activation == "GeLU":
-            y = mop.gelu(dout)  # TODO implement GeLU functions
-        return y
+        dx = mop.mat_diag_abt(dout, self.thata)
+        self.dthata = mop.mat_diag_abt(self.X, dout)
+        self.dbias = mop.horizontal_sum(dout)
+
+        return dx
 
     @property
     def encrypted(self) -> bool:
