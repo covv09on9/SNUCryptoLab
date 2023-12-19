@@ -22,5 +22,5 @@ class HEModules(ABC):
         pass
 
     @abstractmethod
-    def backward(self, X: HEMatrix) -> HEMatrix:
+    def backward(self, dout: HEMatrix) -> HEMatrix:
         pass
