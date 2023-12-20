@@ -1,13 +1,12 @@
 from heaan_sdk.matrix import HEMatrix, HESubMatrix
 from heaan_sdk.matrix.ops import mat_ops as mop
-from .modules import HEModules
 
 
-class Sigmoid(HEModules):
+class Sigmoid:
     def __init__(self):
         self.y = None
 
-    def forward(self, X: HEMatrix):
+    def forward(self, X:HEMatrix):
         y = mop.sigmoid(X)
         self.y = y
         return y
@@ -17,7 +16,7 @@ class Sigmoid(HEModules):
         return dx
 
 
-class GeLU(HEModules):
+class GeLU:
     def __init__(self):
         self.y = None
         self.X = None

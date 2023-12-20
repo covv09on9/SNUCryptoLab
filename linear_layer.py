@@ -44,10 +44,8 @@ from heaan_sdk.util.io import (
     save_rns,
 )
 
-from .modules import HEModules
 
-
-class Linear(HEModules):
+class Linear:
     def __init__(
         self,
         context: Context,
