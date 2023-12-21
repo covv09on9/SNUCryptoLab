@@ -121,7 +121,7 @@ class GeLU(ActivationOperation):
         self.x.bootstrap_if(3, force=True)
         self.y.bootstrap_if(3, force=True)
 
-        tmp_x:HEMatrix = 1.702 * self.X
+        tmp_x:HEMatrix = 1.702 * self.x
         tmp_x.bootstrap_if(3, force=True)
 
         tmp_y:HEMatrix = (self.y * (1 - self.y))
@@ -165,11 +165,15 @@ class Layers:
 
 class MLP:
     def __init__(self, 
+                 context:Context,
+                 unit_shape:Tuple[int, ...],
                  layers:List[Operation],
                  lr:float,
                  num_epoch:int,
                  batch_size:int,
                  ):
+        self.context = context 
+        self.unit_shape = unit_shape
         self.epoch_state: int = 0
         self.step_state: int = 1
         self.lr = lr
