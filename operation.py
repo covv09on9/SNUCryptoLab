@@ -26,8 +26,20 @@ class Operation(ABC):
         pass
 
 class ParamOperation(Operation, ABC):
-    def __init__(self):
+    def __init__(self, 
+                 context:Context, 
+                 unit_shape:Tuple[int, ...],
+                 input_dim:int, 
+                 output_dim:int, ):
+        self.context = context
+        self.unit_shape = unit_shape
+        # self.
         pass 
+    
+    @property
+    def shape(self)->Tuple[int, int]:
+        raise 
+
     @abstractmethod
     def forward(self, x):
         pass 
@@ -57,6 +69,7 @@ class Params(ParamOperation):
                  random_state:Optional[int] = 0,
                  initializer:str = "kaiming_he",
                  )->None:
+        super().__init__(context)
         self.context = context
         self.unit_shape = unit_shape
         self.input_dim = input_dim 

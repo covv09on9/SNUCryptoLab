@@ -49,31 +49,31 @@ class Params(ParamOperation):
     def __init__(self,
                  input_dim:int, 
                  output_dim:int,
-                 random_state:Optional[int] = 0,
                  )->None:
         
         self.input_dim = input_dim 
         self.output_dim = output_dim 
-        self.random_state = get_random_state(random_state)
         self.weight = self._init_theta()
         self.dweight = None 
         self.x = None
         
     @property
     def shape(self)->Tuple[int, int]:
-        return (self.input_dim, self.output_dim)
+        return self.weight.shape
     
     def _init_theta(self) -> NDArrayCplx:
-        return np.random.rand(self.input_dim, self.output_dim)
+        return np.random.rand(self.output_dim, self.input_dim)
 
     def forward(self, x:NDArrayCplx)->NDArrayCplx:
+        x = np.array(x)
         self.x = x
         x = np.matmul(x, self.weight.T)
         return x
     
     def backward(self, dout:NDArrayCplx)->NDArrayCplx:
-        dx = np.matmul(dout, self.weight.T) # dx = mop.mat_submat_diag_abt(dout, self.weight)
-        self.dweight = np.matmul(dout.T, self.x) # self.dweight = mop.mat_diag_atb(dout, self.x)
+        dout = np.array(dout)
+        dx = np.matmul(dout, self.weight) # dx = mop.mat_submat_diag_abt(dout, self.weight)
+        self.dweight = np.matmul(self.x.T, dout) # self.dweight = mop.mat_diag_atb(dout, self.x)
         return dx
     
 class Sigmoid(ActivationOperation):
@@ -81,15 +81,17 @@ class Sigmoid(ActivationOperation):
         self.y = None
 
     def forward(self, x:NDArrayCplx):
+        x = np.array(x)
         y = 1 / (1 + np.exp(-x))
         self.y = y
         return y
 
     def backward(self, dout:NDArrayCplx):
+        dout = np.array(dout)
         tmp_dx:NDArrayCplx = self.y * (1 - self.y)
         #tmp_dx.bootstrap_if(3, force=True)
         #dout.bootstrap_if(3, force=True)
-        dx = np.matmul(dout, tmp_dx)
+        dx = dout * tmp_dx
         return dx
     
 class GeLU(ActivationOperation):
@@ -98,6 +100,7 @@ class GeLU(ActivationOperation):
         self.x = None
 
     def forward(self, x: NDArrayCplx):
+        x = np.array(x)
         #x.bootstrap_if(3, force=True)
         self.x = x
         tmp_x = 1.702 * self.x
@@ -108,24 +111,19 @@ class GeLU(ActivationOperation):
         return y
 
     def backward(self, dout):
-        #self.x.bootstrap_if(3, force=True)
-        #self.y.bootstrap_if(3, force=True)
-
-        tmp_x:NDArrayCplx = 1.702 * self.X
-        #tmp_x.bootstrap_if(3, force=True)
+        dout = np.array(dout)
+        tmp_x:NDArrayCplx = 1.702 * self.x
 
         tmp_y:NDArrayCplx = (self.y * (1 - self.y))
-        #tmp_y.bootstrap_if(3, force=True)
 
         tmp_dout = 1 / (1 + np.exp(-tmp_x))
-        tmp_dout2 = np.matul(tmp_x, tmp_y)  
+        tmp_dout2 = tmp_x * tmp_y  
         #tmp_dout2.bootstrap_if(3, force=True)
 
-        dx:NDArrayCplx = np.matmul(dout, tmp_dout + tmp_dout2)
+        dx:NDArrayCplx = dout * (tmp_dout + tmp_dout2)
         #dx.bootstrap_if(3)
         return dx
     
-
 class Layers:
     def __init__(self):
         self.layers:List[Operation] = []
@@ -183,7 +181,7 @@ class MLP:
         #loss.bootstrap_if(3)
         #loss *= 1/batch_size
         delta = 1e-5
-        batch_size = t.shape[0]
+        batch_size = len(t)
         loss = -np.sum(t*np.log(y+delta))/batch_size
 
         return loss
@@ -191,6 +189,7 @@ class MLP:
     def loss(self, x, t):
         y = self.predict(x)
         loss = self.cross_entropy_loss(y, t)
+        loss = np.array([loss])
         return loss
     
     def gradient(self, x, t):
@@ -218,10 +217,11 @@ class MLP:
                 for i in batch_list:
                     X_batch.append(X[i])
                     y_batch.append(t[i])
-                
+                print(X_batch)
                 grads = self.gradient(X_batch, y_batch)
-                for i in range(len(self.layers)):
-                    self.layers[i].weight -= self.lr * self.layers[i].dweight
+                for i, layer in enumerate(self.layers):
+                    if isinstance(layer, ParamOperation):
+                        self.layers[i].weight -= self.lr * self.layers[i].dweight.T
 
     #@property
     #def device(self) -> heaan.Device:
