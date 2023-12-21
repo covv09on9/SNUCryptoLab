@@ -26,21 +26,8 @@ class Operation(ABC):
         pass
 
 class ParamOperation(Operation, ABC):
-    def __init__(self, 
-                 context:Context, 
-                 unit_shape:Tuple[int, ...],
-                 input_dim:int, 
-                 output_dim:int, ):
-        self.context = context
-        self.unit_shape = unit_shape
-        self.input_dim = input_dim
-        self.output_dim = output_dim
+    def __init__(self):
         pass 
-    
-    @property
-    def shape(self)->Tuple[int, int]:
-        raise 
-
     @abstractmethod
     def forward(self, x):
         pass 
@@ -70,11 +57,10 @@ class Params(ParamOperation):
                  random_state:Optional[int] = 0,
                  initializer:str = "kaiming_he",
                  )->None:
-        super().__init__(context, unit_shape, input_dim, output_dim)
-        # self.context = context
-        # self.unit_shape = unit_shape
-        # self.input_dim = input_dim 
-        # self.output_dim = output_dim 
+        self.context = context
+        self.unit_shape = unit_shape
+        self.input_dim = input_dim 
+        self.output_dim = output_dim 
         self.random_state = get_random_state(random_state)
         self.weight = self._init_theta(initializer)
         self.dweight = None 
@@ -91,13 +77,18 @@ class Params(ParamOperation):
         )
 
     def forward(self, x:HEMatrix)->HEMatrix:
+        # x.bootstrap_if(10, force=True)
         self.x = x
         x = mop.mat_submat_diag_abt(x, self.weight)
+        # x.bootstrap_if(10, force=True)
         return x 
     
     def backward(self, dout:HEMatrix)->HEMatrix:
+        # dout.bootstrap_if(10, force=True)
         dx = mop.mat_submat_diag_abt(dout, self.weight)
+        # self.dweight.bootstrap_if(10, force=True)
         self.dweight = mop.mat_diag_atb(dout, self.x)
+        # dx.bootstrap_if(10, force=True)
         return dx
     
 class Sigmoid(ActivationOperation):
@@ -105,15 +96,19 @@ class Sigmoid(ActivationOperation):
         self.y = None
 
     def forward(self, x:HEMatrix):
+        x.bootstrap_if(5, force=True)
         y = mop.sigmoid(x, wide=True)
+        y.bootstrap_if(5, force=True)
         self.y = y
         return y
 
     def backward(self, dout:HEMatrix):
-        tmp_dx:HEMatrix = self.y * (1 - self.y)
-        tmp_dx.bootstrap_if(5, force=True)
         dout.bootstrap_if(5, force=True)
+        # self.y.bootstrap_if(10, force=True)
+        tmp_dx:HEMatrix = self.y * (1 - self.y)
+        # tmp_dx.bootstrap_if(10, force=True)
         dx = dout * tmp_dx
+        dx.bootstrap_if(5, force=True)
         return dx
     
 class GeLU(ActivationOperation):
@@ -122,18 +117,22 @@ class GeLU(ActivationOperation):
         self.x = None
 
     def forward(self, x: HEMatrix):
-        x.bootstrap_if(5, force=True)
+        # x.bootstrap_if(10, force=True)
         self.x = x
         tmp_x = 1.702 * self.x
         tmp_x.bootstrap_if(5, force=True)
-        y = self.x * mop.sigmoid(tmp_x)
+        tmp_x1 = mop.sigmoid(tmp_x, wide=True)
+        tmp_x1.bootstrap_if(5, force=True)
+        self.x.bootstrap_if(5, force=True)
+        y = self.x * tmp_x1
         y.bootstrap_if(5, force=True)
         self.y = y
         return y
 
-    def backward(self, dout):
-        self.x.bootstrap_if(5, force=True)
-        self.y.bootstrap_if(5, force=True)
+    def backward(self, dout:HEMatrix):
+        # self.x.bootstrap_if(10, force=True)
+        # self.y.bootstrap_if(10, force=True)
+        dout.bootstrap_if(5, force=True)
 
         tmp_x:HEMatrix = 1.702 * self.x
         tmp_x.bootstrap_if(5, force=True)
@@ -141,52 +140,26 @@ class GeLU(ActivationOperation):
         tmp_y:HEMatrix = (self.y * (1 - self.y))
         tmp_y.bootstrap_if(5, force=True)
 
-        tmp_dout = mop.sigmoid(tmp_x)
+        tmp_dout = mop.sigmoid(tmp_x, wide=True)
+        tmp_dout.bootstrap_if(5, force=True)
         tmp_dout2 = tmp_x * tmp_y 
         tmp_dout2.bootstrap_if(5, force=True)
 
         dx:HEMatrix = dout * (tmp_dout + tmp_dout2)
         dx.bootstrap_if(5, force=True)
         return dx
-    
-
-class Layers:
-    def __init__(self):
-        self.layers:List[Operation] = []
-
-    def forward(self, x:HEMatrix)->HEMatrix:
-        if len(self.layers) > 0:
-            for layer in self.layers :
-                x = layer.forward(x)
-            return x
-        else:
-            raise Exception("Layer should be more than one")
-    
-    def backward(self, dout:HEMatrix)->HEMatrix:
-        if len(self.layers) > 0:
-            for layer in reversed(self.layers):
-                dout = layer.backward(dout)
-            return dout 
-        else:
-            raise Exception("Layer should be more than one")
-
-    def append(self, addOp:Operation):
-        if len(self.layers) != 0 :
-            lastLayer_outputDim = self.layers[-1].weight.shape[1]
-        if isinstance(addOp, ParamOperation):
-            assert addOp.weight.shape[0] == lastLayer_outputDim
-        self.layers.append(addOp)
 
 class MLP:
     def __init__(self, 
                  context:Context,
                  unit_shape:Tuple[int, ...],
+
                  layers:List[Operation],
                  lr:float,
                  num_epoch:int,
                  batch_size:int,
                  ):
-        self.context = context 
+        self.context = context
         self.unit_shape = unit_shape
         self.epoch_state: int = 0
         self.step_state: int = 1
@@ -203,12 +176,13 @@ class MLP:
     
     def cross_entropy_loss(self, y, t):
         batch_size = t.shape[0]
-        tmp = t * mop.loge(y + 1e-5)
+        tmp:HEMatrix = t * mop.loge(y + 1e-5)
         tmp.bootstrap_if(5, force=True)
+
         loss = mop.vertical_sum(tmp, direction=0, fill=True)
         loss.num_cols = 1
         loss.num_rows = 1
-        loss.bootstrap_if(5, force=True)
+        loss.bootstrap_if(8, force=True)
         loss *= 1/batch_size
         return (-1 * loss) 
     
@@ -218,7 +192,8 @@ class MLP:
         return loss
     
     def gradient(self, x, t):
-        dout = self.loss(x, t)
+        dout:HEMatrix = self.loss(x, t)
+        dout.bootstrap_if(7, force=True)
         for layer in reversed(self.layers):
             dout = layer.backward(dout)
             
@@ -241,6 +216,7 @@ class MLP:
                     y_batch.objects.append(t[i].deepcopy())
                 X_batch.to(self.device)
                 y_batch.to(self.device)
+                X_batch.bootstrap_if(10,force =True)
                 self.gradient(X_batch, y_batch)
                 for layer in self.layers:
                     if isinstance(layer, ParamOperation):
