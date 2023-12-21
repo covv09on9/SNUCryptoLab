@@ -203,7 +203,6 @@ class MLP:
         dout = self.loss(x, t)
         for layer in reversed(self.layers):
             dout = layer.backward(dout)
-        for layer in self.layers :
             
     def fit(self, train:DataSet):
         total_list = list(range(len(train)))
@@ -227,7 +226,7 @@ class MLP:
                 self.gradient(X_batch, y_batch)
                 for layer in self.layers:
                     if isinstance(layer, ParamOperation):
-                        layer.weight -= self.lr * self.layer.dweight
+                        layer.weight -= self.lr * layer.dweight
 
     @property
     def device(self) -> heaan.Device:
