@@ -122,31 +122,31 @@ class GeLU(ActivationOperation):
         self.x = None
 
     def forward(self, x: HEMatrix):
-        x.bootstrap_if(3, force=True)
+        x.bootstrap_if(5, force=True)
         self.x = x
         tmp_x = 1.702 * self.x
-        tmp_x.bootstrap_if(3, force=True)
+        tmp_x.bootstrap_if(5, force=True)
         y = self.x * mop.sigmoid(tmp_x)
-        y.bootstrap_if(3, force=True)
+        y.bootstrap_if(5, force=True)
         self.y = y
         return y
 
     def backward(self, dout):
-        self.x.bootstrap_if(3, force=True)
-        self.y.bootstrap_if(3, force=True)
+        self.x.bootstrap_if(5, force=True)
+        self.y.bootstrap_if(5, force=True)
 
         tmp_x:HEMatrix = 1.702 * self.x
-        tmp_x.bootstrap_if(3, force=True)
+        tmp_x.bootstrap_if(5, force=True)
 
         tmp_y:HEMatrix = (self.y * (1 - self.y))
-        tmp_y.bootstrap_if(3, force=True)
+        tmp_y.bootstrap_if(5, force=True)
 
         tmp_dout = mop.sigmoid(tmp_x)
         tmp_dout2 = tmp_x * tmp_y 
-        tmp_dout2.bootstrap_if(3, force=True)
+        tmp_dout2.bootstrap_if(5, force=True)
 
         dx:HEMatrix = dout * (tmp_dout + tmp_dout2)
-        dx.bootstrap_if(3)
+        dx.bootstrap_if(5, force=True)
         return dx
     
 
@@ -204,7 +204,7 @@ class MLP:
     def cross_entropy_loss(self, y, t):
         batch_size = t.shape[0]
         tmp = t * mop.loge(y + 1e-5)
-        tmp.bootstrap_if(3)
+        tmp.bootstrap_if(5, force=True)
         loss = mop.vertical_sum(tmp, direction=0, fill=True)
         loss.num_cols = 1
         loss.num_rows = 1
