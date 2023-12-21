@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Tuple, Optional, cast, List
+from typing import Any, Tuple, Optional, cast, List
+from typing_extensions import Self, TypeAlias
 
 import numpy as np
 import pandas as pd
