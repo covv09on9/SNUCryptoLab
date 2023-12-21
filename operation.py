@@ -8,6 +8,10 @@ from heaan_sdk.ml.linear_model import initializers, utils
 from heaan_sdk.util import as_shape, get_random_state
 from heaan_sdk.matrix.ops import mat_ops as mop
 from heaan_sdk.ml.linear_model.datasets import DataSet
+from typing_extensions import Self
+from heaan_sdk.core.mod import heaan
+from math import ceil
+from tqdm import tqdm 
 
 class Operation(ABC):
     def __init__(self):
