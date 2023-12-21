@@ -201,7 +201,7 @@ class MLP:
     def fit(self, train:pd.DataFrame):
         total_list = list(range(len(train)))
         num_batch = min(int(ceil(self.batch_size / train.shape[0])), len(train))
-        
+
         columns = train.columns.to_list()
         features = []
         for col in columns:
