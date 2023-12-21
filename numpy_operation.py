@@ -1,16 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Tuple, Optional, cast, List
 
-from heaan_sdk.matrix import HEMatrix, HESubMatrix
-from heaan_sdk.core.context import Context
-from heaan_sdk.ml.linear_model import initializers, utils
-from get_random_state import get_random_state
-from heaan_sdk.matrix.ops import mat_ops as mop
-from heaan_sdk.ml.linear_model.datasets import DataSet
-from heaan_sdk.core.mod import heaan
 import numpy as np
 import pandas as pd
 import numpy.typing as npt
+from tqdm import tqdm
+from math import ceil
 
 NDArrayCplx: TypeAlias = npt.NDArray[Any]
 
@@ -201,7 +196,6 @@ class MLP:
         dout = self.loss(x, t)
         for layer in reversed(self.layers):
             dout = layer.backward(dout)
-        
 
     def fit(self, train:pd.DataFrame):
         total_list = list(range(len(train)))
@@ -218,7 +212,6 @@ class MLP:
             batch_set = [total_list[idx : idx + num_batch] for idx in range(0, len(train), num_batch)]
             batch_set = tqdm(batch_set, desc=f"Epoch {epoch + 1}")
             for batch_list in batch_set:
-                bsz = utils.get_batch_size(X, batch_list)
                 X_batch = []
                 y_batch = []
                 for i in batch_list:
