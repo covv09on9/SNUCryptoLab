@@ -203,25 +203,28 @@ class MLP:
             dout = layer.backward(dout)
         
 
-    def fit(self, train:DataSet):
+    def fit(self, train:pd.DataFrame):
         total_list = list(range(len(train)))
-        num_batch = min(int(ceil(self.batch_size / train.unit_shape[0])), len(train))
+        num_batch = min(int(ceil(self.batch_size / train.shape[0])), len(train))
         
-        X, t = train.feature, train.target
+        columns = train.columns.to_list()
+        features = []
+        for col in columns:
+            if col != "target":
+                features.append(col)
+        X, t = train[features].to_numpy(), train["target"]
 
         for epoch in range(self.epoch):
             batch_set = [total_list[idx : idx + num_batch] for idx in range(0, len(train), num_batch)]
             batch_set = tqdm(batch_set, desc=f"Epoch {epoch + 1}")
             for batch_list in batch_set:
-                batch_list = self._reorder_batch(train, batch_list)
                 bsz = utils.get_batch_size(X, batch_list)
-                X_batch = HEMatrix(self.context, shape=(bsz, X.shape[1]), encrypted=train.encrypted)
-                y_batch = HEMatrix(self.context, shape=(bsz, t.shape[1]), encrypted=train.encrypted)
+                X_batch = []
+                y_batch = []
                 for i in batch_list:
-                    X_batch.objects.append(X[i].deepcopy())
-                    y_batch.objects.append(t[i].deepcopy())
-                X_batch.to(self.device)
-                y_batch.to(self.device)
+                    X_batch.append(X[i])
+                    y_batch.append(t[i])
+                
                 grads = self.gradient(X_batch, y_batch)
                 for i in range(len(self.layers)):
                     self.layers[i].weight -= self.lr * self.layers[i].dweight
@@ -230,21 +233,4 @@ class MLP:
     #def device(self) -> heaan.Device:
     #    return self.layers[0].weight.device
 
-    def _reorder_batch(self, data_set: DataSet, batch_list: List[int]) -> List[int]:
-        """Reorder batch index so that the remaining submatrix became the last submatrix in a batch.
-
-        Args:
-            data_set (DataSet): DataSet.
-            batch_list (List[int]): List of batch index.
-
-        Returns:
-            List[int]: Reordered list of batch index.
-        """
-        num_batch = len(batch_list)
-        assert data_set.target is not None
-        for i in range(num_batch - 1):
-            if data_set.target[batch_list[i]].shape[0] < data_set.unit_shape[0]:
-                batch_list[i], batch_list[-1] = batch_list[-1], batch_list[i]
-                break
-        return batch_list
 
