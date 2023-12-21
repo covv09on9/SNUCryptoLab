@@ -33,7 +33,8 @@ class ParamOperation(Operation, ABC):
                  output_dim:int, ):
         self.context = context
         self.unit_shape = unit_shape
-        # self.
+        self.input_dim = input_dim
+        self.output_dim = output_dim
         pass 
     
     @property
@@ -69,11 +70,11 @@ class Params(ParamOperation):
                  random_state:Optional[int] = 0,
                  initializer:str = "kaiming_he",
                  )->None:
-        super().__init__(context)
-        self.context = context
-        self.unit_shape = unit_shape
-        self.input_dim = input_dim 
-        self.output_dim = output_dim 
+        super().__init__(context, unit_shape, input_dim, output_dim)
+        # self.context = context
+        # self.unit_shape = unit_shape
+        # self.input_dim = input_dim 
+        # self.output_dim = output_dim 
         self.random_state = get_random_state(random_state)
         self.weight = self._init_theta(initializer)
         self.dweight = None 
@@ -104,14 +105,14 @@ class Sigmoid(ActivationOperation):
         self.y = None
 
     def forward(self, x:HEMatrix):
-        y = mop.sigmoid(x)
+        y = mop.sigmoid(x, wide=True)
         self.y = y
         return y
 
     def backward(self, dout:HEMatrix):
         tmp_dx:HEMatrix = self.y * (1 - self.y)
-        tmp_dx.bootstrap_if(3, force=True)
-        dout.bootstrap_if(3, force=True)
+        tmp_dx.bootstrap_if(5, force=True)
+        dout.bootstrap_if(5, force=True)
         dx = dout * tmp_dx
         return dx
     
@@ -207,7 +208,7 @@ class MLP:
         loss = mop.vertical_sum(tmp, direction=0, fill=True)
         loss.num_cols = 1
         loss.num_rows = 1
-        loss.bootstrap_if(3)
+        loss.bootstrap_if(5, force=True)
         loss *= 1/batch_size
         return (-1 * loss) 
     
