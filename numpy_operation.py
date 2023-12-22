@@ -86,8 +86,6 @@ class Sigmoid(ActivationOperation):
     def backward(self, dout:np.ndarray):
         dout = np.array(dout)
         tmp_dx:np.ndarray = self.y * (1 - self.y)
-        #tmp_dx.bootstrap_if(3, force=True)
-        #dout.bootstrap_if(3, force=True)
         dx = dout * tmp_dx
         return dx
     
@@ -98,12 +96,9 @@ class GeLU(ActivationOperation):
 
     def forward(self, x: np.ndarray):
         x = np.array(x)
-        #x.bootstrap_if(3, force=True)
         self.x = x
         tmp_x = 1.702 * self.x
-        #tmp_x.bootstrap_if(3, force=True)
         y = self.x * (1 / (1 + np.exp(-tmp_x)))
-        #y.bootstrap_if(3, force=True)
         self.y = y
         return y
 
@@ -115,10 +110,8 @@ class GeLU(ActivationOperation):
 
         tmp_dout = 1 / (1 + np.exp(-tmp_x))
         tmp_dout2 = tmp_x * tmp_y  
-        #tmp_dout2.bootstrap_if(3, force=True)
 
         dx:np.ndarray = dout * (tmp_dout + tmp_dout2)
-        #dx.bootstrap_if(3)
         return dx
     
 class Layers:
