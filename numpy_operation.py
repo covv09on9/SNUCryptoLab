@@ -1,14 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Any, Tuple, Optional, cast, List
-from typing_extensions import Self, TypeAlias
 
 import numpy as np
 import pandas as pd
 import numpy.typing as npt
 from tqdm import tqdm
 from math import ceil
-
-NDArrayCplx: TypeAlias = npt.NDArray[Any]
 
 class Operation(ABC):
     def __init__(self):
@@ -61,16 +58,16 @@ class Params(ParamOperation):
     def shape(self)->Tuple[int, int]:
         return self.weight.shape
     
-    def _init_theta(self) -> NDArrayCplx:
+    def _init_theta(self) -> np.ndarray:
         return np.random.rand(self.output_dim, self.input_dim)
 
-    def forward(self, x:NDArrayCplx)->NDArrayCplx:
+    def forward(self, x:np.ndarray)->np.ndarray:
         x = np.array(x)
         self.x = x
         x = np.matmul(x, self.weight.T)
         return x
     
-    def backward(self, dout:NDArrayCplx)->NDArrayCplx:
+    def backward(self, dout:np.ndarray)->np.ndarray:
         dout = np.array(dout)
         dx = np.matmul(dout, self.weight) # dx = mop.mat_submat_diag_abt(dout, self.weight)
         self.dweight = np.matmul(self.x.T, dout) # self.dweight = mop.mat_diag_atb(dout, self.x)
@@ -80,15 +77,15 @@ class Sigmoid(ActivationOperation):
     def __init__(self):
         self.y = None
 
-    def forward(self, x:NDArrayCplx):
+    def forward(self, x:np.ndarray):
         x = np.array(x)
         y = 1 / (1 + np.exp(-x))
         self.y = y
         return y
 
-    def backward(self, dout:NDArrayCplx):
+    def backward(self, dout:np.ndarray):
         dout = np.array(dout)
-        tmp_dx:NDArrayCplx = self.y * (1 - self.y)
+        tmp_dx:np.ndarray = self.y * (1 - self.y)
         #tmp_dx.bootstrap_if(3, force=True)
         #dout.bootstrap_if(3, force=True)
         dx = dout * tmp_dx
@@ -99,7 +96,7 @@ class GeLU(ActivationOperation):
         self.y = None
         self.x = None
 
-    def forward(self, x: NDArrayCplx):
+    def forward(self, x: np.ndarray):
         x = np.array(x)
         #x.bootstrap_if(3, force=True)
         self.x = x
@@ -112,15 +109,15 @@ class GeLU(ActivationOperation):
 
     def backward(self, dout):
         dout = np.array(dout)
-        tmp_x:NDArrayCplx = 1.702 * self.x
+        tmp_x:np.ndarray = 1.702 * self.x
 
-        tmp_y:NDArrayCplx = (self.y * (1 - self.y))
+        tmp_y:np.ndarray = (self.y * (1 - self.y))
 
         tmp_dout = 1 / (1 + np.exp(-tmp_x))
         tmp_dout2 = tmp_x * tmp_y  
         #tmp_dout2.bootstrap_if(3, force=True)
 
-        dx:NDArrayCplx = dout * (tmp_dout + tmp_dout2)
+        dx:np.ndarray = dout * (tmp_dout + tmp_dout2)
         #dx.bootstrap_if(3)
         return dx
     
@@ -128,7 +125,7 @@ class Layers:
     def __init__(self):
         self.layers:List[Operation] = []
 
-    def forward(self, x:NDArrayCplx)->NDArrayCplx:
+    def forward(self, x:np.ndarray)->np.ndarray:
         if len(self.layers) > 0:
             for layer in self.layers :
                 x = layer.forward(x)
@@ -136,7 +133,7 @@ class Layers:
         else:
             raise Exception("Layer should be more than one")
     
-    def backward(self, dout:NDArrayCplx)->NDArrayCplx:
+    def backward(self, dout:np.ndarray)->np.ndarray:
         if len(self.layers) > 0:
             for layer in reversed(self.layers):
                 dout = layer.backward(dout)
@@ -166,20 +163,12 @@ class MLP:
         self.layers = layers
         self.grads = []
         
-    def predict(self, x:NDArrayCplx):
+    def predict(self, x:np.ndarray):
         for layer in self.layers:
             x = layer.forward(x)
         return x
     
     def cross_entropy_loss(self, y, t):
-        #batch_size = t.shape[0]
-        #tmp = t * mop.loge(y + 1e-5)
-        #tmp.bootstrap_if(3)
-        #loss = mop.vertical_sum(tmp, direction=0, fill=True)
-        #loss.num_cols = 1
-        #loss.num_rows = 1
-        #loss.bootstrap_if(3)
-        #loss *= 1/batch_size
         delta = 1e-5
         batch_size = len(t)
         loss = -np.sum(t*np.log(y+delta))/batch_size
@@ -217,14 +206,7 @@ class MLP:
                 for i in batch_list:
                     X_batch.append(X[i])
                     y_batch.append(t[i])
-                print(X_batch)
                 grads = self.gradient(X_batch, y_batch)
                 for i, layer in enumerate(self.layers):
                     if isinstance(layer, ParamOperation):
                         self.layers[i].weight -= self.lr * self.layers[i].dweight.T
-
-    #@property
-    #def device(self) -> heaan.Device:
-    #    return self.layers[0].weight.device
-
-
